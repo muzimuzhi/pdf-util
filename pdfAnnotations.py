@@ -4,7 +4,7 @@ import argparse
 from typing import Final
 
 from PyPDF2 import PdfFileReader, PdfFileWriter
-from PyPDF2.generic import (ArrayObject, FloatObject, createStringObject)
+from PyPDF2.generic import (ArrayObject, DecodedStreamObject, FloatObject, createStringObject)
 # local lib
 from colorfulPrint import print_in_green
 
@@ -22,6 +22,8 @@ arg_parser.add_argument('input',
                         help='pdf file name')
 arg_parser.add_argument('--pages',
                         help='page ranges (page number is 0 based). default: every page')
+arg_parser.add_argument('--print-all', action='store_const', const=True, default=False,
+                        help='print every entries of an annotation')
 # arg_parser.add_argument('--entry',
 #                         default=['/A', '/C', '/CA'],
 #                         dest='entries',
@@ -83,21 +85,21 @@ def print_annotations(annotations):
         # print "header"
         print(f"Page: {print_in_green(p_num)} Type: {get_xkey(annot, '/Subtype', wrapper=print_in_green)}")
 
-        # print selective entries
-        entries = {'/C': 'color', '/CA': 'opacity', '/A': 'action'}
-        for key, note in entries.items():
-            if key in annot:
-                print(f"  {key} \t({note}):\t {get_xkey(annot, key)}")
-
-        # print all entries
-        # for i in annot:
-        #     if i != '/Subtype':
-        #         print(f"  {i}: {annot[i]}")
+        if args.print_all:
+            for i in annot:
+                if i != '/Subtype':
+                    print(f"  {i}: {annot[i]}")
+        else:
+            # print selective entries
+            entries = {'/C': 'color', '/CA': 'opacity', '/A': 'action'}
+            for key, note in entries.items():
+                if key in annot:
+                    print(f"  {key} \t({note}):\t {get_xkey(annot, key)}")
 
 
 ENTRY_HANDLERS: Final = {
-    '/C': lambda c: ArrayObject(map(lambda x: FloatObject(x), eval(c))),
-    '/CA': lambda c: ArrayObject(map(lambda x: FloatObject(x), eval(c))),
+    '/C': lambda c: ArrayObject(map(lambda x: FloatObject(x), eval(c) if isinstance(c, str) else c)),
+    '/CA': lambda c: ArrayObject(map(lambda x: FloatObject(x), eval(c) if isinstance(c, str) else c)),
 }
 
 
@@ -111,14 +113,33 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
     old_value = handler(old_value)
     new_value = handler(new_value)
 
-    print(f'Update {print_in_green(subtype)} annotation: {entry} = {old_value} -> {entry} = {new_value}')
+    print(f'Updated {print_in_green(subtype)} annotation: {entry} = {old_value} -> {entry} = {new_value}')
 
     for p_num, annot in annotations:
-        if annot['/Subtype'] == subtype and entry in annot and annot[entry] == old_value:
-            print(f"  Page: {print_in_green(p_num)}, /A (action): {get_xkey(annot, '/A')}")
+        if annot['/Subtype'] == subtype and entry in annot and repr(annot[entry]) == repr(old_value):
+            # use repr() to compare FloatObject, a decimal.Decimal wrapper, whose __repr__ is restricted to 5 decimals
+            print(f'  Page: {print_in_green(p_num)}, /A (action): {get_xkey(annot, "/A")}')
 
             # to update, both the key and value must be a subclass of PdfObject
             annot[createStringObject(entry)] = new_value
+
+            # replace color deeply stored in '/AP' of '/Highlight' subtype (created by adobe reader)
+            if subtype == annot['/Subtype'] == '/Highlight' and entry == '/C':
+                stream: DecodedStreamObject = \
+                    annot['/AP']['/N']['/Resources']['/XObject']['/MWFOForm']['/Resources']['/XObject']['/Form']
+
+                str_x = stream.getData().decode()
+                # update str_x by replacing color
+                if len(old_value) == 3:
+                    for line in str_x[:].split('\n'):
+                        if line.endswith('rg'):  # assume there is only one color operator
+                            str_x = str_x.replace(line, f'{new_value[0]!r} {new_value[1]!r} {new_value[2]!r} rg')
+                            break
+                else:
+                    raise ValueError(f'Color length {len(old_value)} not yet supported')
+                stream.setData(str_x.encode())
+
+                print(f'  Updated also \'/AP\' (appearance dictionary)')
 
 
 if __name__ == '__main__':
