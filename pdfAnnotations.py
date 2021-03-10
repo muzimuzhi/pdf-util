@@ -75,8 +75,8 @@ def parse_page_ranges(pages, max_page):
     return rst
 
 
-# get value by possible key from a dictionary
-def get_xkey(d, key, default=None, wrapper=lambda x: x):
+# get value by possible key from a DictionaryObject
+def get_entry(d, key, default=None, wrapper=lambda x: x):
     value = d.get(key, default)
     return wrapper(value)
 
@@ -96,7 +96,7 @@ def get_annotations(pdf, pages_list):
 def print_annotations(annotations):
     for p_num, annot in annotations:
         # print "header"
-        print(f"Page: {print_in_green(p_num)} Type: {get_xkey(annot, '/Subtype', wrapper=print_in_green)}")
+        print(f"Page: {print_in_green(p_num)} Type: {get_entry(annot, '/Subtype', wrapper=print_in_green)}")
 
         if args.print_all:
             for i in annot:
@@ -107,7 +107,7 @@ def print_annotations(annotations):
             entries = {'/C': 'color', '/CA': 'opacity', '/A': 'action'}
             for key, note in entries.items():
                 if key in annot:
-                    print(f"  {key} \t({note}):\t {get_xkey(annot, key)}")
+                    print(f"  {key} \t({note}):\t {get_entry(annot, key)}")
 
 
 ENTRY_HANDLERS: Final = {
@@ -131,7 +131,7 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
     for p_num, annot in annotations:
         if annot['/Subtype'] == subtype and entry in annot and repr(annot[entry]) == repr(old_value):
             # use repr() to compare FloatObject, a decimal.Decimal wrapper
-            print(f'  Page: {print_in_green(p_num)}, /A (action): {get_xkey(annot, "/A")}')
+            print(f'  Page: {print_in_green(p_num)}, /A (action): {get_entry(annot, "/A")}')
 
             # to update, both the key and value should be instances of PdfObject
             annot[createStringObject(entry)] = new_value
@@ -196,15 +196,10 @@ if __name__ == '__main__':
     # update
     if args.update_rules:
         print()
-        # print(args.update_rules)
 
         for subtype, entry, old_value, new_value in args.update_rules:
             annotations = get_annotations(pdf_reader, pages_list)
             update_annotations(annotations, subtype, entry, old_value, new_value)
-
-        # data for manual test (hyperref creates '/C: [1, 0, 0]' by default
-        #     RED_BORDER: Final = ArrayObject([FloatObject(i) for i in (1, 0, 0)])
-        #     BLUE_BORDER: Final = ArrayObject([FloatObject(i) for i in (0, 0, 1)])
 
         # write
         if not args.dry:
