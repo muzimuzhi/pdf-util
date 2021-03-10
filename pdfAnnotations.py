@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from decimal import Decimal
 from typing import Final
 
 from PyPDF2 import PdfFileReader, PdfFileWriter
@@ -36,6 +37,18 @@ arg_parser.add_argument('--update', nargs=4, action='append',
                         help='update annotations by subtype and entry filters, accumulated')
 arg_parser.add_argument('--dry', action='store_const', const=True, default=False,
                         help='do not write updated pdf to new file. default: False')
+
+
+def floatobject__repr__(self):
+    if self == self.to_integral():
+        return str(self.quantize(Decimal(1)))
+    else:
+        # Standard formatting adds useless extraneous zeros.
+        o = '%.6f' % self  # <<< CHANGED HERE
+        # Remove the zeros.
+        while o and o[-1] == '0':
+            o = o[:-1]
+        return o
 
 
 def parse_page_ranges(pages, max_page):
@@ -117,32 +130,57 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
 
     for p_num, annot in annotations:
         if annot['/Subtype'] == subtype and entry in annot and repr(annot[entry]) == repr(old_value):
-            # use repr() to compare FloatObject, a decimal.Decimal wrapper, whose __repr__ is restricted to 5 decimals
+            # use repr() to compare FloatObject, a decimal.Decimal wrapper
             print(f'  Page: {print_in_green(p_num)}, /A (action): {get_xkey(annot, "/A")}')
 
-            # to update, both the key and value must be a subclass of PdfObject
+            # to update, both the key and value should be instances of PdfObject
             annot[createStringObject(entry)] = new_value
 
-            # replace color deeply stored in '/AP' of '/Highlight' subtype (created by adobe reader)
+            # replace another color deeply stored in '/AP' of '/Highlight' subtype (created by adobe reader), and
+            # this color spec is part of a content stream (in python, bytes object) of graphics objects
             if subtype == annot['/Subtype'] == '/Highlight' and entry == '/C':
+                # 1. get stream
                 stream: DecodedStreamObject = \
                     annot['/AP']['/N']['/Resources']['/XObject']['/MWFOForm']['/Resources']['/XObject']['/Form']
 
-                str_x = stream.getData().decode()
-                # update str_x by replacing color
+                # 2. convert stream to str
+                str_ = stream.getData().decode()
+                # >>> str_
+                # 1 0.819611 0 rg                                           % set non-stroking color
+                # 0.6227 w                                                  % set line width (in multiples of 1/72 inch)
+                # 133.768 556.1424 m                                        % move to
+                # 131.4198 558.4906 131.4198 563.7568 133.768 566.105 c     % curve to
+                # 161.6074 566.105 l                                        % line to
+                # 163.9556 563.7568 163.9556 558.4906 161.6074 556.1424 c
+                # f                                                         % fill path
+
+                # 3. replace color
+                def color_repr(color: ArrayObject, mode: str):
+                    color_spec = [repr(c) for c in color]
+                    color_spec.append(mode)
+                    return ' '.join(color_spec)
+
                 if len(old_value) == 3:
-                    for line in str_x[:].split('\n'):
-                        if line.endswith('rg'):  # assume there is only one color operator
-                            str_x = str_x.replace(line, f'{new_value[0]!r} {new_value[1]!r} {new_value[2]!r} rg')
-                            break
+                    old_repr = color_repr(old_value, 'rg')
+                    new_repr = color_repr(new_value, 'rg')
                 else:
                     raise ValueError(f'Color length {len(old_value)} not yet supported')
-                stream.setData(str_x.encode())
 
-                print(f'  Updated also \'/AP\' (appearance dictionary)')
+                if old_repr in str_:
+                    str_new = str_.replace(old_repr, new_repr)
+                    print(f'  Updated /AP (appearance dictionary) also: {old_repr} -> {new_repr}')
+                else:
+                    raise ValueError(f'Color spec "{old_repr}" not found in stream\n{str_}')
+
+                # 4. convert back to bytes and finally update stream
+                stream.setData(str_new.encode())
 
 
 if __name__ == '__main__':
+    # redefine FloatObject.__repr__, use 6 decimals instead of 5
+    # because Adobe uses 6 in annotation color arrays.
+    FloatObject.__repr__ = floatobject__repr__
+
     # args, args_unknown = arg_parser.parse_known_args()
     args = arg_parser.parse_args()
 
