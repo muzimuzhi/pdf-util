@@ -39,18 +39,6 @@ arg_parser.add_argument('--dry', action='store_const', const=True, default=False
                         help='do not write updated pdf to new file. default: False')
 
 
-def floatobject__repr__(self):
-    if self == self.to_integral():
-        return str(self.quantize(Decimal(1)))
-    else:
-        # Standard formatting adds useless extraneous zeros.
-        o = '%.6f' % self  # <<< CHANGED HERE
-        # Remove the zeros.
-        while o and o[-1] == '0':
-            o = o[:-1]
-        return o
-
-
 def parse_page_ranges(pages, max_page):
     if pages is None:
         rst = range(max_page)
@@ -177,9 +165,11 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
 
 
 if __name__ == '__main__':
-    # redefine FloatObject.__repr__, use 6 decimals instead of 5
-    # because Adobe uses 6 in annotation color arrays.
-    FloatObject.__repr__ = floatobject__repr__
+    # Adobe uses 6-decimal floats in annotation color arrays
+    # this constant is defined since v3.16.2, in
+    # https://github.com/py-pdf/pypdf/blame/main/pypdf/generic/_base.py
+    # https://github.com/py-pdf/pypdf/commit/e3f60c1ae6092d350ffb2080ad53e23a6731f634
+    FLOAT_WRITE_PRECISION = 6
 
     # args, args_unknown = arg_parser.parse_known_args()
     args = arg_parser.parse_args()
