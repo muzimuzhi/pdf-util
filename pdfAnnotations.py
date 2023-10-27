@@ -4,8 +4,8 @@ import argparse
 from decimal import Decimal
 from typing import Final
 
-from PyPDF2 import PdfFileReader, PdfFileWriter
-from PyPDF2.generic import (ArrayObject, DecodedStreamObject, FloatObject, createStringObject)
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import (ArrayObject, DecodedStreamObject, FloatObject, createStringObject)
 # local lib
 from colorfulPrint import print_in_green
 
@@ -83,14 +83,14 @@ def get_entry(d, key, default=None, wrapper=lambda x: x):
 
 def get_annotations(pdf, pages_list):
     for p_num in pages_list:
-        page = pdf.getPage(p_num)
+        page = pdf.pages[p_num]
 
         annots = page.get('/Annots', None)
         if annots is None:
             continue
 
-        for annot in annots.getObject():
-            yield p_num, annot.getObject()
+        for annot in annots.get_object():
+            yield p_num, annot.get_object()
 
 
 def print_annotations(annotations):
@@ -184,9 +184,9 @@ if __name__ == '__main__':
     # args, args_unknown = arg_parser.parse_known_args()
     args = arg_parser.parse_args()
 
-    pdf_reader = PdfFileReader(args.input)
+    pdf_reader = PdfReader(args.input)
 
-    MAX_PAGE: Final = pdf_reader.getNumPages()
+    MAX_PAGE: Final = len(pdf_reader.pages)
     pages_list = parse_page_ranges(args.pages, MAX_PAGE)
 
     # print
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         # write
         if not args.dry:
             print()
-            pdf_writer = PdfFileWriter()
+            pdf_writer = PdfWriter()
             pdf_writer.cloneReaderDocumentRoot(pdf_reader)
 
             output = args.input.replace('.pdf', '-updated.pdf')
