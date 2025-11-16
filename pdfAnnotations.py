@@ -9,6 +9,7 @@
 # ///
 
 import argparse
+from ast import literal_eval
 from typing import Final
 
 from pypdf import PdfReader, PdfWriter
@@ -105,9 +106,10 @@ def print_annotations(annotations):
                     print(f"  {key} \t({note}):\t {get_entry(annot, key)}")
 
 
+# Example value of `c`: '[1, 0, 0]'
 ENTRY_HANDLERS: Final = {
-    '/C': lambda c: ArrayObject(map(lambda x: FloatObject(x), eval(c) if isinstance(c, str) else c)),
-    '/CA': lambda c: ArrayObject(map(lambda x: FloatObject(x), eval(c) if isinstance(c, str) else c)),
+    '/C': lambda c: ArrayObject(map(lambda x: FloatObject(x), literal_eval(c) if isinstance(c, str) else c)),
+    '/CA': lambda c: ArrayObject(map(lambda x: FloatObject(x), literal_eval(c) if isinstance(c, str) else c)),
 }
 
 

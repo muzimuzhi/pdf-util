@@ -20,7 +20,7 @@ def str_in_color(text, fcolor="RESET", bcolor="RESET"):
     elif bcolor not in COLOR_SET:
         raise ValueError(f"Unknown colorama color '{bcolor}'. Use one of {COLOR_SET} instead.")
     else:
-        prefix = eval(f"Fore.{fcolor} + Back.{bcolor}")
+        prefix = getattr(Fore, fcolor) + getattr(Back, bcolor)
         suffix = Style.RESET_ALL
         return prefix + str(text) + suffix
 
