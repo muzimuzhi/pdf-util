@@ -141,7 +141,7 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
                     annot['/AP']['/N']['/Resources']['/XObject']['/MWFOForm']['/Resources']['/XObject']['/Form']
 
                 # 2. convert stream to str
-                str_ = stream.getData().decode()
+                str_ = stream.get_data().decode()
                 # >>> str_
                 # 1 0.819611 0 rg                                           % set non-stroking color
                 # 0.6227 w                                                  % set line width (in multiples of 1/72 inch)
@@ -170,7 +170,7 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
                     raise ValueError(f'Color spec "{old_repr}" not found in stream\n{str_}')
 
                 # 4. convert back to bytes and finally update stream
-                stream.setData(str_new.encode())
+                stream.set_data(str_new.encode())
 
 
 if __name__ == '__main__':
