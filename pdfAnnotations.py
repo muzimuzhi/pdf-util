@@ -12,27 +12,31 @@ import argparse
 from ast import literal_eval
 from typing import Final
 
-from pypdf import PdfReader, PdfWriter
+from pypdf import PageObject, PdfReader, PdfWriter
 from pypdf.generic import (ArrayObject, DecodedStreamObject, FloatObject, create_string_object)
 # local lib
 from colorfulPrint import print_in_green
 
 # set command-line argument parser
-arg_parser = argparse.ArgumentParser(description='Show and update PDF Annotations',
-                                     epilog="""\
+arg_parser = argparse.ArgumentParser(
+    description='Show and update PDF Annotations',
+    epilog="""\
 Examples:
-- Print all the annotations
-    python3 <this script> input.pdf
-- Update the border of all the annotations of subtype '/Link' from red to blue.
+
+Print all the annotations
+    ./pdfAnnotations.py input.pdf
+
+Update the border of all the annotations of subtype '/Link' from red to blue.
   (See PDF Reference v1.7, Sec. 8.4 "Annotations" for more info.)
-    python3 <this script> --update Link C '[1,0,0]' '[0,0,1]' --write input.pdf""",
-                                     formatter_class=argparse.RawDescriptionHelpFormatter, )
+    ./pdfAnnotations.py --update Link C '[1,0,0]' '[0,0,1]'""",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
 arg_parser.add_argument('input',
                         help='pdf file name')
 arg_parser.add_argument('--pages',
-                        help='page ranges (page number is 0 based). default: every page')
+                        help='page ranges (indexed from 0). default: all pages')
 arg_parser.add_argument('--print-all', action='store_const', const=True, default=False,
-                        help='print every entries of an annotation')
+                        help='print all entries of an annotation')
 # arg_parser.add_argument('--entry',
 #                         default=['/A', '/C', '/CA'],
 #                         dest='entries',
@@ -42,8 +46,9 @@ arg_parser.add_argument('--print-all', action='store_const', const=True, default
 arg_parser.add_argument('--update', nargs=4, action='append',
                         dest='update_rules',
                         metavar=('/Subtype', '/ENTRY', 'old', 'new'),
-                        help='update annotations by subtype and entry filters, accumulated')
-arg_parser.add_argument('--dry', action='store_const', const=True, default=False,
+                        help='update annotations by subtype and entry filters and write to "<input>-updated.pdf". Multiple uses are accumulated.')
+arg_parser.add_argument('--dry', action='store_const', const=True,
+                        default=False,
                         help='do not write updated pdf to new file. default: False')
 
 
@@ -77,8 +82,8 @@ def get_entry(d, key, default=None, wrapper=lambda x: x):
     return wrapper(value)
 
 
-def get_annotations(pdf, pages_list):
-    for p_num in pages_list:
+def get_annotations(pdf, pages):
+    for p_num in pages:
         page = pdf.pages[p_num]
 
         annots = page.get('/Annots', None)
@@ -183,13 +188,13 @@ if __name__ == '__main__':
     # args, args_unknown = arg_parser.parse_known_args()
     args = arg_parser.parse_args()
 
-    pdf_reader = PdfReader(args.input)
+    pdf = PdfReader(args.input)
 
-    MAX_PAGE: Final = len(pdf_reader.pages)
-    pages_list = parse_page_ranges(args.pages, MAX_PAGE)
+    MAX_PAGE: Final = len(pdf.pages)
+    pages: range | list[PageObject] = parse_page_ranges(args.pages, MAX_PAGE)
 
     # print
-    annotations = get_annotations(pdf_reader, pages_list)
+    annotations = get_annotations(pdf, pages)
     print_annotations(annotations)
 
     # update
@@ -197,14 +202,14 @@ if __name__ == '__main__':
         print()
 
         for subtype, entry, old_value, new_value in args.update_rules:
-            annotations = get_annotations(pdf_reader, pages_list)
+            annotations = get_annotations(pdf, pages)
             update_annotations(annotations, subtype, entry, old_value, new_value)
 
         # write
         if not args.dry:
             print()
             pdf_writer = PdfWriter()
-            pdf_writer.clone_reader_document_root(pdf_reader)
+            pdf_writer.clone_reader_document_root(pdf)
 
             output = args.input.replace('.pdf', '-updated.pdf')
             with open(output, 'wb') as pdf_out:
