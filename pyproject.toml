@@ -1,0 +1,10 @@
+[project]
+name = "pdf-util"
+version = "0.1.0"
+description = "Python scripts for working with PDF"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "colorama>=0.4",
+    "pypdf>=6.2",
+]

@@ -3,8 +3,8 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "colorama",
-#     "pypdf",
+#     "colorama>=0.4",
+#     "pypdf>=6.2",
 # ]
 # ///
 
