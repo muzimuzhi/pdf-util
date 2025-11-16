@@ -5,6 +5,7 @@
 # dependencies = [
 #     "colorama>=0.4",
 #     "pypdf>=6.2",
+#     "termcolor>=3.2",
 # ]
 # ///
 
@@ -13,9 +14,13 @@ from ast import literal_eval
 from typing import Final
 
 from pypdf import PageObject, PdfReader, PdfWriter
-from pypdf.generic import (ArrayObject, DecodedStreamObject, FloatObject, create_string_object)
-# local lib
-from colorfulPrint import print_in_green
+from pypdf.generic import (
+    ArrayObject,
+    DecodedStreamObject,
+    FloatObject,
+    create_string_object,
+)
+from termcolor import colored
 
 # set command-line argument parser
 arg_parser = argparse.ArgumentParser(
@@ -50,6 +55,9 @@ arg_parser.add_argument('--update', nargs=4, action='append',
 arg_parser.add_argument('--dry', action='store_const', const=True,
                         default=False,
                         help='do not write updated pdf to new file. default: False')
+
+def print_in_green(text):
+    return colored(text, 'green')
 
 
 def parse_page_ranges(pages, max_page):
@@ -179,6 +187,10 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
 
 
 if __name__ == '__main__':
+    # suggested by https://github.com/tartley/colorama?tab=readme-ov-file#colored-output
+    from colorama import just_fix_windows_console
+    just_fix_windows_console()
+
     # Adobe uses 6-decimal floats in annotation color arrays
     # this constant is defined since v3.16.2, in
     # https://github.com/py-pdf/pypdf/blame/main/pypdf/generic/_base.py

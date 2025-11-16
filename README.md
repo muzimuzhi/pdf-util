@@ -1,10 +1,7 @@
 # pdf-util
 
 Script
-  - `pdfAnnotations.py` Show and update PDF Annotations, require [`pypdf`](https://pypi.org/project/pypdf/) and helper `colorfulPrint.py`
-
-Helper
-  - `colorfulPrint.py` A simple wrapper of [`colorama`](https://pypi.org/project/colorama/)
+  - `pdfAnnotations.py` Show and update PDF Annotations
 
 ------
 

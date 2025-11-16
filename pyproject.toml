@@ -7,4 +7,5 @@ requires-python = ">=3.14"
 dependencies = [
     "colorama>=0.4",
     "pypdf>=6.2",
+    "termcolor>=3.2",
 ]
