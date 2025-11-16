@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Final
 
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import (ArrayObject, DecodedStreamObject, FloatObject, createStringObject)
+from pypdf.generic import (ArrayObject, DecodedStreamObject, FloatObject, create_string_object)
 # local lib
 from colorfulPrint import print_in_green
 
@@ -122,7 +122,7 @@ def update_annotations(annotations, subtype, entry, old_value, new_value):
             print(f'  Page: {print_in_green(p_num)}, /A (action): {get_entry(annot, "/A")}')
 
             # to update, both the key and value should be instances of PdfObject
-            annot[createStringObject(entry)] = new_value
+            annot[create_string_object(entry)] = new_value
 
             # replace another color deeply stored in '/AP' of '/Highlight' subtype (created by adobe reader), and
             # this color spec is part of a content stream (in python, bytes object) of graphics objects
@@ -195,7 +195,7 @@ if __name__ == '__main__':
         if not args.dry:
             print()
             pdf_writer = PdfWriter()
-            pdf_writer.cloneReaderDocumentRoot(pdf_reader)
+            pdf_writer.clone_reader_document_root(pdf_reader)
 
             output = args.input.replace('.pdf', '-updated.pdf')
             with open(output, 'wb') as pdf_out:
